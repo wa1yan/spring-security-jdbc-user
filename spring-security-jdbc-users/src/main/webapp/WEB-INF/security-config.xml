@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xmlns:context="http://www.springframework.org/schema/context"
+	xmlns:security="http://www.springframework.org/schema/security"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
+		http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context.xsd
+		http://www.springframework.org/schema/security http://www.springframework.org/schema/security/spring-security.xsd">
+
+	<context:component-scan base-package="com.waiyanhtet.security.service"></context:component-scan>
+	
+	<bean id="dataSource" class="org.apache.commons.dbcp.BasicDataSource">
+		<property name="url" value="jdbc:mysql://localhost:3306/testdbforspringsecurity"></property>
+		<property name="username" value="root"></property>
+		<property name="password" value="root"></property>
+	</bean>
+	
+	<bean id="userInsert" class="org.springframework.jdbc.core.simple.SimpleJdbcInsert" depends-on="dataSource">
+		<constructor-arg ref="dataSource"></constructor-arg>
+		<property name="catalogName" value="testdbforspringsecurity"></property>
+		<property name="tableName" value="user"></property>
+		<property name="columnNames">
+			<list>
+				<value>loginId</value>
+				<value>password</value>
+				<value>name</value>
+			</list>
+		</property>
+	</bean>
+	
+	
+	<bean id="bcryptEncoder" class="org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder"></bean>
+	
+	<security:authentication-manager id="authManager">
+	
+		<security:authentication-provider>
+			<security:user-service>
+				<security:user name="admin" authorities="Admin" password="{noop}ram123"/>
+			</security:user-service>
+		</security:authentication-provider>
+		<security:authentication-provider>
+			
+			 <security:password-encoder hash="bcrypt" ref="bcryptEncoder"/> 
+			
+			<security:jdbc-user-service data-source-ref="dataSource"
+				users-by-username-query="select loginId,password,valid from user where loginId = ?"
+				authorities-by-username-query="select loginId, role from user where loginId = ?"/>
+			
+		</security:authentication-provider>
+	</security:authentication-manager>
+	
+	<security:http authentication-manager-ref="authManager">
+		<security:csrf disabled="true"/>
+		<security:intercept-url pattern="/admin/**" access="hasAuthority('Admin')" />
+		<security:intercept-url pattern="/member/**" access="hasAnyAuthority('Member','Admin')" />
+		
+		<security:form-login 
+			login-page="/login"
+			login-processing-url="/login"
+			username-parameter="loginId"
+			password-parameter="password"
+		/>
+		
+		<security:logout logout-url="/logout" logout-success-url="/" invalidate-session="true"/>
+	</security:http>
+	
+
+</beans>
